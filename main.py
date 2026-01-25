@@ -133,7 +133,7 @@ def input_error(func):
         except WrongBirthdayError:
             return "Invalid date format. Use DD.MM.YYYY"
         except ValueError:
-            return "Give me name and phone/birthday please."
+            return "Give me name and phone/birthday please, in case of change additional number."
         except KeyError:
             return f"Current name was not found in dictionary."
         except IndexError:
@@ -167,6 +167,8 @@ def add_contact(args, book: AddressBook):
 
 @input_error
 def change_contact(args, book: AddressBook):
+    if len(args) == 2:
+        return f"Please enter additional number"
     name, old_phone, new_phone = args
     if book.find(name):
         book.find(name).edit_phone(old_phone, new_phone)
