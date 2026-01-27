@@ -36,11 +36,11 @@ class WrongBirthdayError(ValueError):
 class Birthday(Field):
     def __init__(self, value):
         super().__init__(value)
-        pattern = r"\d{2}\.\d{2}\.\d{4}"
-        self.birth_time = None
-        if not re.fullmatch(pattern, value):
+        try:
+            self.value = datetime.strptime(value, "%d.%m.%Y").date()
+        except ValueError:
             raise WrongBirthdayError("Invalid date format. Use DD.MM.YYYY")
-        self.birth_time = datetime.strptime(value, "%d.%m.%Y").date()
+        
 
 
 class Record:
@@ -76,11 +76,9 @@ class Record:
             return None
 
     def __str__(self):
-        return f"Contact name: {self.name.value}, phones: {'; '.join(str(p) for p in self.phones)}"
+        return f"Contact name: {self.name.value}, phones: {'; '.join(str(p) for p in self.phones)}, birthday: {self.birthday}"
 
 
-def date_to_string(data):
-    return data.strftime("%d.%m.%Y")
 
 
 class AddressBook(UserDict):
@@ -107,7 +105,7 @@ class AddressBook(UserDict):
             if contact.birthday is None:
                 continue
 
-            birthday = contact.birthday.birth_time
+            birthday = contact.birthday.value
             birthday_this_year = birthday.replace(year=today.year)
 
             if 0 <= (birthday_this_year - today).days <= days:
@@ -133,11 +131,13 @@ def input_error(func):
         except WrongBirthdayError:
             return "Invalid date format. Use DD.MM.YYYY"
         except ValueError:
-            return "Give me name and phone/birthday please, in case of change additional number."
+            return "Give me name and phone/birthday please"
         except KeyError:
             return f"Current name was not found in dictionary."
         except IndexError:
             return f"Please provide an argument"
+        except AttributeError:
+            return f"This contact does not exist"
 
     return inner
 
@@ -149,7 +149,8 @@ def parse_input(user_input):
     except ValueError:
         return f"Please write a command"
 
-
+def date_to_string(data):
+    return data.strftime("%d.%m.%Y")
 
 @input_error
 def add_contact(args, book: AddressBook):
@@ -170,21 +171,18 @@ def change_contact(args, book: AddressBook):
     if len(args) == 2:
         return f"Please enter additional number"
     name, old_phone, new_phone = args
-    if book.find(name):
+    if old_phone.isdigit() and new_phone.isdigit():
         book.find(name).edit_phone(old_phone, new_phone)
         return f"The contact has been changed"
     else:
-        return f"This contact does not exist."
+        return f"Please provide second and third arguments as digital numbers"
 
 
 @input_error
 def what_number(args, book: AddressBook):
     name = args[0]
-    if book.find(name):
-        return str(book.find(name))
-    else:
-        return f"This contact does not exist."
-
+    return str(book.find(name))
+    
 
 @input_error
 def all_contacts(book: AddressBook):
@@ -194,24 +192,22 @@ def all_contacts(book: AddressBook):
 def add_birthday(args, book: AddressBook):
     name, birthday, *_ = args
     record = book.find(name)
-    if record and record.birthday is None:
+    if record.birthday is None:
         record.add_birthday(birthday)
         return f"The birthday has been added"
-    if record.birthday:
-        return f"This contact already has a birthday date."
     else:
-        return f"This contact does not exist."
+        return f"This contact already has a birthday date."
+    
 
 @input_error
 def show_birthday(args, book: AddressBook):
     name, *_ = args
     contact = book.find(name)
-    if contact and contact.birthday is not None:
+    if contact.birthday is not None:
         return contact.birthday
-    elif contact.birthday is None:
-        return f"This contact does not have a birthday date."
     else:
-        return f"This contact does not exist."
+        return f"This contact does not have a birthday date."
+
 
 @input_error
 def birthdays(book: AddressBook):
