@@ -37,7 +37,8 @@ class Birthday(Field):
     def __init__(self, value):
         super().__init__(value)
         try:
-            self.value = datetime.strptime(value, "%d.%m.%Y").date()
+            birth_date = datetime.strptime(value, "%d.%m.%Y").date()
+            self.value = datetime.strftime(birth_date, "%d.%m.%Y")
         except ValueError:
             raise WrongBirthdayError("Invalid date format. Use DD.MM.YYYY")
         
@@ -181,7 +182,8 @@ def change_contact(args, book: AddressBook):
 @input_error
 def what_number(args, book: AddressBook):
     name = args[0]
-    return str(book.find(name))
+    record = book.find(name)
+    return f'phones: {'; '.join(str(p) for p in record.phones)}'
     
 
 @input_error
