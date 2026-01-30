@@ -15,9 +15,6 @@ class Name(Field):
     pass
 
 
-class WrongSizeNumberError(Exception):
-    pass
-
 
 class Phone(Field):
     def __init__(self, value):
@@ -25,23 +22,26 @@ class Phone(Field):
         if len(self.value) != 10 or not self.value.isdigit():
             raise WrongSizeNumberError("Please enter a valid phone number size - 10")
 
+class WrongSizeNumberError(ValueError):
+    pass
 
 
 class NotFoundNumber(ValueError):
     pass
 
+
 class WrongBirthdayError(ValueError):
     pass
+
 
 class Birthday(Field):
     def __init__(self, value):
         super().__init__(value)
         try:
             birth_date = datetime.strptime(value, "%d.%m.%Y").date()
-            self.value = datetime.strftime(birth_date, "%d.%m.%Y")
+            self.value = date_to_string(birth_date)
         except ValueError:
             raise WrongBirthdayError("Invalid date format. Use DD.MM.YYYY")
-        
 
 
 class Record:
@@ -60,14 +60,14 @@ class Record:
         try:
             self.phones.remove(self.find_phone(phone))
         except ValueError:
-            raise NotFoundNumber('This phone number: {phone} is not present in the record')
+            raise NotFoundNumber('This phone number is not present in the record')
 
     def edit_phone(self, old_phone, new_phone):
         try:
             number = self.phones.index(self.find_phone(old_phone))
             self.phones[number] = Phone(new_phone)
         except ValueError:
-            raise NotFoundNumber('This phone number: {phone} is not present in the record')
+            raise NotFoundNumber('This phone number is not present in the record')
 
     def find_phone(self, phone):
         for phone_contact in self.phones:
@@ -78,8 +78,6 @@ class Record:
 
     def __str__(self):
         return f"Contact name: {self.name.value}, phones: {'; '.join(str(p) for p in self.phones)}, birthday: {self.birthday}"
-
-
 
 
 class AddressBook(UserDict):
@@ -106,7 +104,7 @@ class AddressBook(UserDict):
             if contact.birthday is None:
                 continue
 
-            birthday = contact.birthday.value
+            birthday = datetime.strptime(contact.birthday.value, "%d.%m.%Y").date()
             birthday_this_year = birthday.replace(year=today.year)
 
             if 0 <= (birthday_this_year - today).days <= days:
@@ -122,7 +120,7 @@ class AddressBook(UserDict):
         list_contact = []
         for key in self.data:
             list_contact.append(self.data[key])
-        return f'{'\n'.join(str(p) for p in list_contact)}'
+        return f"{'\n'.join(str(p) for p in list_contact)}"
 
 
 def input_error(func):
@@ -131,6 +129,10 @@ def input_error(func):
             return func(*args, **kwargs)
         except WrongBirthdayError:
             return "Invalid date format. Use DD.MM.YYYY"
+        except WrongSizeNumberError as e:
+            return e
+        except NotFoundNumber as e:
+            return e
         except ValueError:
             return "Give me name and phone/birthday please"
         except KeyError:
@@ -142,6 +144,7 @@ def input_error(func):
 
     return inner
 
+
 def parse_input(user_input):
     try:
         cmd, *args = user_input.split()
@@ -150,8 +153,10 @@ def parse_input(user_input):
     except ValueError:
         return f"Please write a command"
 
+
 def date_to_string(data):
     return data.strftime("%d.%m.%Y")
+
 
 @input_error
 def add_contact(args, book: AddressBook):
@@ -173,8 +178,10 @@ def change_contact(args, book: AddressBook):
         return f"Please enter additional number"
     name, old_phone, new_phone = args
     if old_phone.isdigit() and new_phone.isdigit():
-        book.find(name).edit_phone(old_phone, new_phone)
-        return f"The contact has been changed"
+        if Phone(old_phone) and Phone(new_phone):
+            book.find(name).edit_phone(old_phone, new_phone)
+            return f"The contact has been changed"
+        return None
     else:
         return f"Please provide second and third arguments as digital numbers"
 
@@ -184,11 +191,12 @@ def what_number(args, book: AddressBook):
     name = args[0]
     record = book.find(name)
     return f'phones: {'; '.join(str(p) for p in record.phones)}'
-    
+
 
 @input_error
 def all_contacts(book: AddressBook):
     return str(book)
+
 
 @input_error
 def add_birthday(args, book: AddressBook):
@@ -199,7 +207,7 @@ def add_birthday(args, book: AddressBook):
         return f"The birthday has been added"
     else:
         return f"This contact already has a birthday date."
-    
+
 
 @input_error
 def show_birthday(args, book: AddressBook):
@@ -214,7 +222,6 @@ def show_birthday(args, book: AddressBook):
 @input_error
 def birthdays(book: AddressBook):
     return book.get_upcoming_birthdays()
-
 
 
 def main():
